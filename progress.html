@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>抓取实验 · 实时进度</title>
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#f7f8fa,#14171c);--fg:light-dark(#17212e,#e8edf4);--muted:light-dark(#526174,#b1bbca);--track:light-dark(#e1e7ee,#303946);--accent:light-dark(#247d67,#66c9ac)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,sans-serif}main{max-width:800px;margin:60px auto;padding:0 24px}h1{font-size:30px;font-weight:600;margin:0 0 8px}#stage{font-size:20px;margin:0 0 6px}.muted{color:var(--muted);font-size:14px}.item{margin:36px 0}.row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}.value{font-variant-numeric:tabular-nums}progress{display:block;appearance:none;width:100%;height:14px;border:0;border-radius:10px;overflow:hidden;background:var(--track);margin:10px 0}progress::-webkit-progress-bar{background:var(--track)}progress::-webkit-progress-value{background:var(--accent);transition:width .3s}progress::-moz-progress-bar{background:var(--accent)}#error{color:light-dark(#ad3428,#ffb1a7)}footer{border-top:1px solid var(--track);padding-top:18px;margin-top:40px}button{font:inherit;padding:8px 16px;border:1px solid var(--track);border-radius:8px;background:transparent;color:inherit;cursor:pointer}@media(max-width:480px){main{margin:30px auto}h1{font-size:25px}}
+</style></head><body><main>
+<h1>抓取实验 · 实时进度</h1><p id="stage" aria-live="polite">正在连接任务…</p><div class="muted" id="updated">每 5 秒刷新 · 北京时间</div>
+<div id="downloads"></div>
+<section class="item"><div class="row"><strong>正式训练</strong><span id="trainValue" class="value">—</span></div><progress id="trainBar" max="540" value="0" aria-label="正式训练已完成轮次"></progress><div id="trainDetail" class="muted">等待读取</div></section>
+<section class="item"><div class="row"><strong>正式测试</strong><span id="evalValue" class="value">—</span></div><progress id="evalBar" max="144" value="0" aria-label="正式测试已完成评测组"></progress><div class="muted">两个模型 × 八种训练设置 × 三个种子 × 三类测试集；每组含 20 种测试条件。</div></section>
+<p id="error" role="alert" hidden></p><footer><button id="refresh">立即刷新</button><p class="muted">读取实际文件和实验记录，不模拟增长。训练在每轮结束后更新，测试在每组评测结束后更新。下载百分比按所需文件数计算，不代表整个项目耗时百分比。</p></footer>
+</main><script>
+let busy=false;
+async function refresh(){if(busy)return;busy=true;try{
+ const response=await fetch('/status.json',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!response.ok)throw Error('HTTP '+response.status);const s=await response.json();
+ document.getElementById('stage').textContent=s.stage;document.getElementById('updated').textContent='上次更新 '+s.updated+'（北京时间） · 每 5 秒刷新';
+ const container=document.getElementById('downloads');container.replaceChildren();
+ for(const d of s.downloads){const section=document.createElement('section');section.className='item';const row=document.createElement('div');row.className='row';const label=document.createElement('strong');label.textContent=d.label;const value=document.createElement('span');value.className='value';value.textContent=d.percent.toFixed(1)+'%';row.append(label,value);const bar=document.createElement('progress');bar.max=d.total;bar.value=d.done;bar.setAttribute('aria-label',d.label);const detail=document.createElement('div');detail.className='muted';detail.textContent=d.done.toLocaleString()+' / '+d.total.toLocaleString()+' 个文件 · '+d.state+' · 已读取数据包 '+d.read_gb+' GB';section.append(row,bar,detail);container.append(section)}
+ document.getElementById('trainBar').value=s.training.done;document.getElementById('trainValue').textContent=s.training.done+' / '+s.training.total+' 轮';document.getElementById('trainDetail').textContent='完成 '+s.training.jobs+' / '+s.training.total_jobs+' 次训练 · '+s.training.current;
+ document.getElementById('evalBar').value=s.evaluation.done;document.getElementById('evalValue').textContent=s.evaluation.done+' / '+s.evaluation.total+' 组';const e=document.getElementById('error');e.hidden=!s.error;e.textContent=s.error?'任务中断：'+s.error:'';
+ }catch(e){document.getElementById('stage').textContent='进度连接已断开';const error=document.getElementById('error');error.hidden=false;error.textContent='无法读取最新状态，下面保留的是上次数据，不能据此判断任务仍在运行。'}finally{busy=false}}
+document.getElementById('refresh').addEventListener('click',refresh);refresh();setInterval(refresh,5000);
+</script></body></html>

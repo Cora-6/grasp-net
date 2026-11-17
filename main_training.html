@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="10">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GraspNet 四模型训练</title>
+<style>
+:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#172623;background:#f1f4ef;font-variant-numeric:tabular-nums}
+*{box-sizing:border-box}body{margin:0}main{max-width:1120px;margin:auto;padding:48px 24px}
+h1{font-size:clamp(29px,5vw,47px);letter-spacing:-.045em;margin:8px 0}h2{font-size:19px;margin:0 0 16px}p{line-height:1.55;color:#53665f}
+header{border-bottom:1px solid #cad7cd;padding-bottom:20px;margin-bottom:20px}#refresh{font-size:13px;color:#476158}
+section{border:1px solid #d8e0d8;background:#fff;border-radius:16px;padding:22px;margin-bottom:18px}
+.split{display:grid;grid-template-columns:1.15fr 1fr;gap:18px}.split section{min-width:0}
+table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}th,td{text-align:right;padding:10px 8px;border-bottom:1px solid #edf0ec}th:first-child,td:first-child{text-align:left}
+thead th{color:#4e6259}.scroll{overflow:auto;max-height:350px}.active{background:#e8f4eb}progress{width:100%;height:10px;accent-color:#217c56}
+label{display:block;color:#4e6259;font-size:13px}select{width:100%;padding:9px;border:1px solid #d2ded4;border-radius:8px;background:#f7faf6;color:#172623;margin:6px 0 15px}
+canvas{display:block;width:100%;height:170px}details{color:#53665f}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}summary{cursor:pointer}
+@media(max-width:800px){.split{grid-template-columns:1fr}main{padding:25px 12px}section{padding:14px}}
+</style>
+<main>
+<header><div id="refresh" role="status">正在读取训练记录</div><h1>GraspNet 四模型训练</h1><p id="config"></p></header>
+<section><h2>训练进度 <span id="count"></span></h2><p id="current"></p><progress id="progress" value="0" max="1"></progress></section>
+<div class="split">
+<section><h2>训练任务</h2><div class="scroll"><table><thead><tr><th>模型</th><th>种子</th><th>状态</th><th>已完成轮次</th></tr></thead><tbody id="jobs"></tbody></table></div></section>
+<section><h2>每轮损失与验证准确率</h2><label for="run">训练记录</label><select id="run"></select><canvas id="chart" aria-label="训练损失与验证损失曲线"></canvas><div class="scroll"><table><thead><tr><th>轮次</th><th>训练损失</th><th>验证损失</th><th>验证准确率</th></tr></thead><tbody id="epochs"></tbody></table></div></section>
+</div>
+<details><summary>启动日志</summary><pre id="log"></pre></details>
+</main>
+<script>
+const names={ggcnn_depth:"GG-CNN（深度）",grconvnet:"GR-ConvNet",dual_concat:"双分支",early_concat:"近等容量单分支"};
+const get=id=>document.getElementById(id);
+const selector=get("run");
+let records={};
+const fmt=x=>Number.isFinite(x)?x.toFixed(4):"—";
+function rows(target,data){
+  target.replaceChildren(...data.map(({cells,active})=>{
+    const row=document.createElement("tr");
+    if(active)row.className="active";
+    for(const value of cells){const cell=document.createElement("td");cell.textContent=value;row.append(cell);}
+    return row;
+  }));
+}
+function plot(history){
+  const canvas=get('chart'), w=canvas.clientWidth, h=canvas.clientHeight, ratio=devicePixelRatio||1;
+  canvas.width=w*ratio; canvas.height=h*ratio;
+  const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);ctx.font='12px system-ui';
+  if(!history.length){ctx.fillStyle='#53665f';ctx.fillText('首轮完成后显示损失',12,25);return;}
+  const series=[['train_loss','#217c56','训练损失'],['val_loss','#2563a0','验证损失']];
+  const values=history.flatMap(item=>series.map(([key])=>item[key])).filter(Number.isFinite);
+  if(!values.length)return;
+  const lo=Math.min(...values), hi=Math.max(...values), span=Math.max(hi-lo,0.001), left=50, top=27, bottom=h-22;
+  const x=i=>left+(w-left-14)*i/Math.max(1,history.length-1);
+  const y=v=>bottom-(bottom-top)*(v-lo)/span;
+  for(let i=0;i<3;i++){
+    const py=top+(bottom-top)*i/2;
+    ctx.strokeStyle='#e4ebe5';ctx.beginPath();ctx.moveTo(left,py);ctx.lineTo(w-12,py);ctx.stroke();
+    ctx.fillStyle='#53665f';ctx.fillText(fmt(hi-span*i/2),3,py+4);
+  }
+  series.forEach(([key,color,title],j)=>{
+    ctx.fillStyle=color;ctx.fillText(title,left+95*j,13);
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();
+    history.forEach((item,i)=>i?ctx.lineTo(x(i),y(item[key])):ctx.moveTo(x(i),y(item[key])));ctx.stroke();
+    history.forEach((item,i)=>{ctx.beginPath();ctx.arc(x(i),y(item[key]),3,0,Math.PI*2);ctx.fill();});
+  });
+  ctx.fillStyle='#53665f';ctx.fillText('第 '+history.at(-1).epoch+' 轮',Math.max(left,w-66),h-4);
+}
+function showHistory(){
+  const history=records[selector.value]||[];
+  rows(get("epochs"),history.slice().reverse().map(x=>({cells:[x.epoch,fmt(x.train_loss),fmt(x.val_loss),Number.isFinite(x.val_accuracy)?(100*x.val_accuracy).toFixed(2)+'%':'—']})));
+  plot(history);
+}
+selector.onchange=()=>{
+  try{localStorage.setItem("graspnet-training-selection",selector.value);}catch(e){}
+  showHistory();
+};
+addEventListener('resize',showHistory);
+async function refresh(){
+  try {
+    const {plan,jobs:allJobs,historical,launcher}=__TRAINING_STATUS__;
+    const jobs=allJobs.filter(j=>!j.excluded);
+    const done=j=>j.reused||(j.has_checkpoint&&j.history.length>=plan.epochs);
+    const active=jobs.find(j=>j.started&&!done(j));
+    const failed=launcher.some(line=>line.includes('Traceback'));
+    const totalDone=jobs.filter(done).length;
+    get("refresh").textContent='最近刷新 '+new Date().toLocaleTimeString('zh-CN');
+    get("config").textContent=plan.counts?`${plan.counts.train} 个训练样本 · ${plan.counts.val} 个验证样本 · 每组 ${plan.epochs} 轮 · 训练图不加人工损坏`:'正在建立训练清单';
+    get("count").textContent=jobs.length?`${totalDone} / ${jobs.length}`:'';
+    const p=active?.progress||{};
+    get("current").textContent=failed?'训练进程报错，请查看启动日志。':active?`${names[active.model]} · 种子 ${active.seed} · ${active.device?.toUpperCase()||'准备设备'} · ${p.epoch?'第 '+p.epoch+' 轮，批次 '+p.batch+' / '+p.batches:'准备首批数据'}`:jobs.length&&totalDone===jobs.length?'训练已完成':'等待训练启动';
+    get("progress").max=Math.max(jobs.length,1);
+    get("progress").value=totalDone+(p.epochs?((p.epoch-1)+p.batch/p.batches)/p.epochs:0);
+    rows(get("jobs"),jobs.filter(j=>!j.excluded).map(j=>({active:j===active,cells:[names[j.model],j.seed,j.reused?'复用旧权重':done(j)?'已完成':j===active?(failed?'失败':'进行中'):'等待',j.reused?'—':j.history.length+' / '+plan.epochs]})));
+    const options=[...jobs.filter(j=>!j.reused).map(j=>[j.name,names[j.model]+' · 种子 '+j.seed,j.history]),
+      ...Object.entries(historical).map(([seed,h])=>['old_'+seed,'已有 GR-ConvNet · 种子 '+seed,h])];
+    records=Object.fromEntries(options.map(([id,,h])=>[id,h]));
+    let previous="";
+    try{previous=localStorage.getItem("graspnet-training-selection")||"";}catch(e){}
+    selector.replaceChildren(...options.map(([id,label])=>new Option(label,id)));
+    selector.value=previous in records?previous:(active?.name||options[0]?.[0]||'');
+    showHistory();
+    get("log").textContent=launcher.join('\n');
+  } catch(e) {get("refresh").textContent='连接中断，稍后重试';}
+}
+refresh();
+</script>

@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/dougsm/ggcnn",
+  "commit": "0c50aa7600e8a30d44c5c85cebd6e3394a81f30e",
+  "changes": "None. External wrapper configures input_channels=4.",
+  "files": {
+    "ggcnn2.py": {
+      "upstream_sha256": "52ae0ba25a9da3e87b7fae894558442f41dc610da0c3d485126b345e350c1224",
+      "local_sha256": "52ae0ba25a9da3e87b7fae894558442f41dc610da0c3d485126b345e350c1224"
+    }
+  }
+}

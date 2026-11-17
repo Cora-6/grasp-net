@@ -1,0 +1,16 @@
+{
+  "repository": "https://github.com/skumra/robotic-grasping",
+  "commit": "183c6f68c44c1c7ff0f07707e2db6fcfd6840d2d",
+  "version": "inference/models/grconvnet.py (Original GR-ConvNet)",
+  "changes": "Only absolute import changed to relative import in grconvnet.py; network computation and upstream loss unchanged.",
+  "files": {
+    "grconvnet.py": {
+      "upstream_sha256": "66674131f7908ea66226d83dc8b29041afc240d08be0dc3dd84c2895d663573e",
+      "local_sha256": "a5286972782783f2f1ddf8f35fc64612abd0e0b188415aa7aebe458362a173ca"
+    },
+    "grasp_model.py": {
+      "upstream_sha256": "daf687ffaa19340d598f63f72234eece016367e7442a2acb8c9ebf0e774809fe",
+      "local_sha256": "daf687ffaa19340d598f63f72234eece016367e7442a2acb8c9ebf0e774809fe"
+    }
+  }
+}
