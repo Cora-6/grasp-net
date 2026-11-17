@@ -7,9 +7,9 @@ import torch
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from dataset import GraspNet
+from datasets.graspnet import GraspNet
 from models import build_model,model_loss,metadata
-from run import device_of
+from utils.runtime import device_of
 
 rows=[]
 for rgb in sorted((ROOT/'data/scenes').glob('scene_*/realsense/rgb/*.png')):

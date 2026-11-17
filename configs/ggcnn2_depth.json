@@ -1,0 +1,17 @@
+{
+  "data": "./data",
+  "split": "./split.json",
+  "out": "./outputs/ggcnn2_depth_s42",
+  "model": "ggcnn2_depth",
+  "loss_profile": "original",
+  "variant": "baseline",
+  "selection": "clean",
+  "test_suite": "legacy",
+  "epochs": 20,
+  "size": 300,
+  "batch": 8,
+  "lr": 0.001,
+  "seed": 42,
+  "eval_seed": 42,
+  "device": "auto"
+}

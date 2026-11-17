@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 import cv2
 import numpy as np
-from dataset import load_rectangles
+from datasets.graspnet import load_rectangles
 
 parser=argparse.ArgumentParser();parser.add_argument('--training-only',action='store_true');args=parser.parse_args()
 split=json.loads((ROOT/'split.json').read_text())

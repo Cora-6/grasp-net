@@ -51,7 +51,25 @@ data/scenes/scene_0000/realsense/rect/0000.npy
 
 ## 运行实验
 
-先运行单模型单种子：
+以下命令在仓库根目录运行。配置文件集中在 `configs/`，命令行参数覆盖配置中的同名字段；
+路径相对于当前工作目录。更改数据位置时加 `--data /path/to/data`。
+
+先运行单模型训练：
+
+```bash
+python train.py --config configs/ggcnn2_depth.json
+```
+
+评测选出的权重：
+
+```bash
+python evaluate.py --config configs/ggcnn2_depth.json \
+  --checkpoint outputs/ggcnn2_depth_s42/best.pt \
+  --part test_seen --out outputs/ggcnn2_depth_s42/test_seen --no-visuals
+```
+
+`configs/` 中七个模型各有一份单模型配置，使用同一训练协议。
+单模型训练只做训练和验证；要自动训练并评测三个测试集，使用对照入口：
 
 ```bash
 python scripts/run_model_comparison.py \
@@ -62,17 +80,15 @@ python scripts/run_model_comparison.py \
 运行完整模型对照：
 
 ```bash
-python scripts/run_model_comparison.py \
-  --data ./data --split ./split.json --out ./outputs/comparison \
-  --research-plan \
-  --models ggcnn_depth ggcnn ggcnn2_depth ggcnn2 grconvnet dual_concat early_concat \
-  --seeds 42 43 44 --epochs 20 --device auto
+python scripts/run_model_comparison.py --config configs/comparison.json
 ```
 
 统一输入 300×300、batch 8、Adam 0.001；正常验证集选择权重。
 `baseline` 不额外加入传感器退化，仍使用数据加载器中的普通训练增强。
-各任务训练完成后自动评测三个测试集；用 `--resume` 恢复已有输出目录。
+对照队列完成训练后评测三个测试集；用 `--resume` 恢复已有输出目录。
 更改模型、种子或超参数时应使用新输出目录。
+旧命令 `python run.py train ...` 和 `python run.py evaluate ...` 仍可使用。
+旧命令默认值保留；推荐使用上述配置文件明确实验协议。
 
 评测包含正常、深度噪声/深度缺失/RGB-D 遮挡各三档以及完全关闭深度，共 11 种条件。
 每图保留一个最高分抓取，与任一标注满足角度误差 <30° 且 IoU >0.25 即为正确。
@@ -80,12 +96,26 @@ python scripts/run_model_comparison.py \
 
 ## 代码和输出
 
-- `run.py`：单次训练、验证和测试。
-- `models/`：模型适配、融合网络、损失与输出解码。
-- `dataset.py`、`grasp.py`、`augmentations.py`：数据、矩形和退化处理。
-- `scripts/run_model_comparison.py`：模型对照及融合消融入口。
-- 运行目录下 `config.json`、`history.json`、`best.pt`、`last.pt`：配置、训练记录、权重。
-- `test_*/metrics.csv`、`predictions.json`、`evaluation_manifest.json`：测试成绩、逐图记录和来源。
+推荐从配置开始，沿着数据 → 模型 → 损失 → 训练 → 评测阅读。
+
+| 位置 | 职责 |
+|---|---|
+| `configs/` | 单模型与完整对照的实验设置 |
+| `datasets/` | GraspNet 读取、RGB-D 预处理、标签生成、退化 |
+| `models/registry.py`、`models/*.py` | 模型创建、架构与输入适配 |
+| `losses.py` | 训练目标及损失配置 |
+| `engine/trainer.py` | 训练、验证选模、保存与恢复 |
+| `evaluation/` | 预测解码、矩形匹配、退化评测 |
+| `scripts/run_model_comparison.py` | 多模型、多种子任务调度 |
+| `dashboard/server.py` | 读取实验记录并提供进度页面 |
+| `legacy/` | 历史 Cornell 适配与 Tiny U-Net |
+
+完整阅读顺序、兼容入口和参数解释见 [代码结构说明](docs/STRUCTURE.md)。
+`dataset.py`、`grasp.py`、`augmentations.py`、`run.py` 保留为旧接口兼容层。
+
+每个训练目录下的 `config.json`、`history.json`、`best.pt`、`last.pt` 分别保存解析后的设置、
+训练记录、最优权重和可恢复训练状态；`test_*/metrics.csv`、`predictions.json`、
+`evaluation_manifest.json` 保存测试成绩、逐图记录和来源。
 
 数据集、权重、历史实验输出与本机日志均不包含在代码仓库中。
 历史 PPT 的 GR-ConvNet 曾复用不同尺寸/损失配置的权重，不能把历史表格称为完全统一配置对照；
@@ -94,12 +124,17 @@ python scripts/run_model_comparison.py \
 ## 本地进度页面
 
 ```bash
-python scripts/modality_dashboard.py
+python scripts/modality_dashboard.py --runs outputs/comparison
 ```
 
-打开 http://127.0.0.1:18767/ 。每五秒读取三组补充实验的进度：
+打开 http://127.0.0.1:18767/ 。每五秒读取实验记录。
+`--runs` 支持一个或多个对照目录、单模型训练目录；`--port` 可更换端口。
+对照目录根据计划显示尚未启动的任务，单模型目录需已有 `config.json`。
+页面展示标准 11 条件评测的进度。
+
+不传 `--runs` 时保留原有三组补充实验路径：
 `outputs/ggcnn_modalities/ggcnn_s42`、`outputs/ggcnn_modalities/ggcnn2_depth_s42`、
-`outputs/ggcnn2_comparison/ggcnn2_s42`。如果使用别的输出目录，修改脚本的 `JOBS` 配置。
+`outputs/ggcnn2_comparison/ggcnn2_s42`。
 页面不会启动训练。`progress_server.py` 与 `main_training_dashboard.py` 为早期实验页面。
 
 ## 来源

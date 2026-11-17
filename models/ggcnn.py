@@ -5,7 +5,7 @@ from torch import nn
 from third_party.ggcnn.ggcnn import GGCNN
 
 
-class GGCNNRGBD(nn.Module):
+class GGCNNAdapter(nn.Module):
     architecture = "ggcnn"
 
     def __init__(self, depth_only=False):
@@ -21,3 +21,6 @@ class GGCNNRGBD(nn.Module):
         if outputs[0].shape[-2:] != x.shape[-2:]:
             raise ValueError("Use 300-pixel inputs for original GG-CNN")
         return torch.cat(outputs, dim=1)
+
+# Historical class name retained for external callers.
+GGCNNRGBD = GGCNNAdapter

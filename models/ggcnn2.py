@@ -4,7 +4,7 @@ from torch import nn
 from third_party.ggcnn2.ggcnn2 import GGCNN2
 
 
-class GGCNN2RGBD(nn.Module):
+class GGCNN2Adapter(nn.Module):
     architecture = 'ggcnn2'
 
     def __init__(self, depth_only=False):
@@ -19,3 +19,6 @@ class GGCNN2RGBD(nn.Module):
             raise ValueError('GG-CNN2 requires square input divisible by four')
         inputs = x[:, 3:4] if self.depth_only else torch.cat((x[:, 3:4], x[:, :3]), dim=1)
         return torch.cat(self.network(inputs.contiguous()), dim=1)
+
+# Historical class name retained for external callers.
+GGCNN2RGBD = GGCNN2Adapter

@@ -7,6 +7,9 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from utils.config import parse_with_config
+
 MODELS = ("ggcnn", "grconvnet", "dual_concat", "early_concat")
 TEST_PARTS = ("test_seen", "test_similar", "test_novel")
 
@@ -42,7 +45,7 @@ def main():
     parser.add_argument("--models", nargs="+", choices=(*MODELS, "ggcnn_depth", "ggcnn2", "ggcnn2_depth"),
                         help="Run only selected models, in a separate output directory")
     parser.add_argument("--seeds", nargs="+", type=int, default=[42, 43, 44])
-    args = parser.parse_args()
+    args = parse_with_config(parser)
     data, out = args.data.resolve(), args.out.resolve()
     split = json.loads(args.split.read_text())
     parts = ("train", "val", *TEST_PARTS)

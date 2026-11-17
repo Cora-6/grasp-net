@@ -10,7 +10,7 @@ import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from dataset import GraspNet, load_rectangles
+from datasets.graspnet import GraspNet, load_rectangles
 from models import build_model, model_loss
 from prepare_split import create
 

@@ -1,0 +1,22 @@
+{
+  "data": "./data",
+  "split": "./split.json",
+  "out": "./outputs/comparison",
+  "research_plan": true,
+  "models": [
+    "ggcnn_depth",
+    "ggcnn",
+    "ggcnn2_depth",
+    "ggcnn2",
+    "grconvnet",
+    "dual_concat",
+    "early_concat"
+  ],
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "epochs": 20,
+  "device": "auto"
+}
